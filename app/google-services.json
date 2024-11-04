@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "685534133427",
+    "project_id": "symx-d4d35",
+    "storage_bucket": "symx-d4d35.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:685534133427:android:3d57c993345a65789004c6",
+        "android_client_info": {
+          "package_name": "com.example.sym"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZrtpgcKikbplNEqLroEJhdaoNTd85E1A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
