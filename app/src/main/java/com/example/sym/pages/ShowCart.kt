@@ -14,6 +14,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +30,8 @@ fun ShowCart(
 ) {
     val productCart by productViewModel.productsCart.observeAsState(emptyList())
     val total = productCart.sumOf { it.price }
+    val isLoading by productViewModel.isLoading.observeAsState(false)
+    val context = LocalContext.current
 
     // Custom color scheme matching other pages
     val customColorScheme = lightColorScheme(
@@ -76,7 +79,6 @@ fun ShowCart(
                     .padding(paddingValues)
             ) {
                 if (productCart.isEmpty()) {
-                    // Enhanced empty cart display
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -197,7 +199,6 @@ fun ShowCart(
                             }
                         }
 
-                        // Enhanced total amount card
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -229,12 +230,9 @@ fun ShowCart(
                             }
                         }
 
-                        // Enhanced checkout button
                         Button(
                             onClick = {
-                                productViewModel.checkOut(productCart)
-                                productViewModel.clearCart()
-                                navController.navigate("home")
+                                productViewModel.checkOut(context)
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -246,8 +244,18 @@ fun ShowCart(
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 4.dp,
                                 pressedElevation = 8.dp
-                            )
+                            ),
+                            enabled = !isLoading // Disable the button while loading
                         ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .padding(end = 8.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
                             Icon(
                                 Icons.Default.ShoppingCartCheckout,
                                 contentDescription = "Checkout",

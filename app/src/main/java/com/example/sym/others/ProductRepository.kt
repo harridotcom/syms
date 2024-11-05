@@ -4,114 +4,130 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.sym.objs.Product
-import com.example.sym.others.GrpData.extractGroupedProductDetails
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
 class ProductRepository {
+    private val database = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
-    val database = FirebaseFirestore.getInstance()
-    val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
+    // Cache the current user's email to ensure consistency
+    private val currentUserEmail: String?
+        get() = auth.currentUser?.email
 
-    val ProductList = mutableListOf<Product>()
-
-    suspend fun getProducts(): List<Product> = withContext(Dispatchers.IO) {
+    suspend fun getProducts(): Result<List<Product>> = withContext(Dispatchers.IO) {
         try {
+            // Verify user is authenticated
+            val email = currentUserEmail ?: return@withContext Result.failure(
+                IllegalStateException("User not authenticated")
+            )
+
             val documents = database.collection("Kirana")
                 .get()
                 .await()
 
-            return@withContext documents.mapNotNull { document ->
+            val products = documents.mapNotNull { document ->
                 val name = document.getString("name")
                 val price = document.getString("price")
                 if (name != null && price != null) {
                     Product(name = name, price = price.toDouble())
                 } else null
             }
+            Result.success(products)
         } catch (e: Exception) {
-            // Handle error
-            return@withContext emptyList()
-        }
-    }
-
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun checkout(list: List<Product>){
-
-        val currentDate = LocalDate.now().toString()
-        val currentDateTime = "${LocalDateTime.now()}_${UUID.randomUUID()}"
-
-        val data = hashMapOf(
-            "items $currentDateTime" to list
-        )
-
-        currentUser?.email?.let {
-            database.collection("User")
-                .document(it).collection("Transactions")
-                .document(currentDate)
-                .set(data, SetOptions.merge())
+            Log.e("ProductRepository", "Error fetching products", e)
+            Result.failure(e)
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun getTodaysCollection(onSuccess: (List<List<Pair<String, Double>>>) -> Unit, onFailure: (Exception) -> Unit) {
-        Log.d("Today", "Pressed")
+    suspend fun checkout(list: List<Product>): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val email = currentUserEmail ?: return@withContext Result.failure(
+                IllegalStateException("User not authenticated")
+            )
 
-        val currentDate = LocalDate.now().toString()
+            val currentDate = LocalDate.now().toString()
+            val currentDateTime = "${LocalDateTime.now()}_${UUID.randomUUID()}"
 
-        currentUser?.email?.let { email ->
+            // Structure the data with more metadata
+            val data = hashMapOf(
+                "items $currentDateTime" to list
+            )
+
             database.collection("User")
                 .document(email)
                 .collection("Transactions")
                 .document(currentDate)
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        // Call extractGroupedProductDetails with the document data and pass the result to onSuccess
-                        val groupedProducts = extractGroupedProductDetails(document.data.toString())
-                        onSuccess(groupedProducts)
-                    } else {
-                        onSuccess(emptyList()) // Pass an empty list if no document is found
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    Log.d("Failed", "Failed")
-                    onFailure(exception) // Pass the exception to the onFailure callback
-                }
+                .set(hashMapOf(currentDateTime to data), SetOptions.merge())
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("ProductRepository", "Error during checkout", e)
+            Result.failure(e)
         }
     }
 
-    fun allTransactions(
-        onSuccess: (List<List<List<Pair<String, Double>>>>) -> Unit,
-        onFailure: (Exception) -> Unit
-    ) {
-        currentUser?.email?.let { email ->
-            database.collection("User")
-                .document(email)
-                .collection("Transactions")
-                .get()
-                .addOnSuccessListener { querySnapshot ->
-                    // Extract each transaction's raw data as a string and parse it with `extractGroupedTransactionDetails`
-                    val transactionDetails = querySnapshot.documents.mapNotNull { document ->
-                        val rawData = document.data.toString() // Convert document data to a string
-                        GrpData.extractGroupedProductDetails(rawData) // Parse using extractGroupedProductDetails
-                    }
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun getTodaysCollection(): Result<List<List<Pair<String, Double>>>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val email = currentUserEmail ?: return@withContext Result.failure(
+                    IllegalStateException("User not authenticated")
+                )
 
-                    onSuccess(transactionDetails) // Pass the list of grouped transaction details to onSuccess
+                val currentDate = LocalDate.now().toString()
+                val document = database.collection("User")
+                    .document(email)
+                    .collection("Transactions")
+                    .document(currentDate)
+                    .get()
+                    .await()
+
+                Log.d("Doc", "${document.data}")
+
+                if (document.exists()) {
+                    val groupedProducts = GrpData.extractGroupedProductDetails(document.data.toString())
+                    Result.success(groupedProducts)
+                } else {
+                    Result.success(emptyList())
                 }
-                .addOnFailureListener { exception ->
-                    onFailure(exception)
+            } catch (e: Exception) {
+                Log.e("ProductRepository", "Error fetching today's collection", e)
+                Result.failure(e)
+            }
+        }
+
+    suspend fun allTransactions(): Result<List<List<List<Pair<String, Double>>>>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val email = currentUserEmail ?: return@withContext Result.failure(
+                    IllegalStateException("User not authenticated")
+                )
+
+                val querySnapshot = database.collection("User")
+                    .document(email)
+                    .collection("Transactions")
+                    .get()
+                    .await()
+
+                val transactionDetails = querySnapshot.documents.mapNotNull { document ->
+                    val rawData = document.data.toString()
+                    GrpData.extractGroupedProductDetails(rawData)
                 }
-        } ?: onFailure(Exception("User is not authenticated"))
-    }
 
-
+                Result.success(transactionDetails)
+            } catch (e: Exception) {
+                Log.e("ProductRepository", "Error fetching all transactions", e)
+                Result.failure(e)
+            }
+        }
 }
