@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.sym.pages.AllTransactions
 import com.example.sym.pages.HomePage
 import com.example.sym.pages.LoginPage
 import com.example.sym.pages.RegisterPage
@@ -41,6 +42,9 @@ fun Navigation(
         }
         composable("todayCollection"){
             TodayCollection(productViewModel = productViewModel)
+        }
+        composable("allTransactions"){
+            AllTransactions(productViewModel = productViewModel)
         }
     }
 }

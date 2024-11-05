@@ -1,6 +1,7 @@
 package com.example.sym.vms
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -41,6 +42,12 @@ class ProductViewModel(private val productRepository: ProductRepository): ViewMo
         _productsCart.value = updatedCart
     }
 
+    fun deleteProductFromCart(product: Product){
+        val updatedCart = _productsCart.value.orEmpty().toMutableList()
+        updatedCart.remove(product)
+        _productsCart.value = updatedCart
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun checkOut(list: List<Product>){
         productRepository.checkout(list)
@@ -59,6 +66,20 @@ class ProductViewModel(private val productRepository: ProductRepository): ViewMo
             },
             onFailure = { exception ->
                 _error.value = exception.message ?: "Unknown error occurred" // Update LiveData with the error message
+            }
+        )
+    }
+
+    private val _allProducts = MutableLiveData<List<List<List<Pair<String, Double>>>>>()
+    val allProducts: LiveData<List<List<List<Pair<String, Double>>>>> = _allProducts
+
+    fun getAllTransactions() {
+        productRepository.allTransactions(
+            onSuccess = { allProduct ->
+                _allProducts.value = allProduct // Update LiveData with transaction data
+            },
+            onFailure = {
+                Log.d("Failed", "Failed to retrieve transactions")
             }
         )
     }

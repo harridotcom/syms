@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -102,14 +104,16 @@ fun SwipeableCard(
 
 @Composable
 fun CardList(products: State<List<Product>?>, productViewModel: ProductViewModel) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        products.value?.forEach { product ->
-            SwipeableCard(
-                product = product,
-                onSwipe = {
-                    productViewModel.addToCart(product)
-                }
-            )
+    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+        products.value?.let { productList ->
+            items(productList) { product ->
+                SwipeableCard(
+                    product = product,
+                    onSwipe = {
+                        productViewModel.addToCart(product)
+                    }
+                )
+            }
         }
     }
 }

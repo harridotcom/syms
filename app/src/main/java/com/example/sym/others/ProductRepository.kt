@@ -88,4 +88,30 @@ class ProductRepository {
                 }
         }
     }
+
+    fun allTransactions(
+        onSuccess: (List<List<List<Pair<String, Double>>>>) -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        currentUser?.email?.let { email ->
+            database.collection("User")
+                .document(email)
+                .collection("Transactions")
+                .get()
+                .addOnSuccessListener { querySnapshot ->
+                    // Extract each transaction's raw data as a string and parse it with `extractGroupedTransactionDetails`
+                    val transactionDetails = querySnapshot.documents.mapNotNull { document ->
+                        val rawData = document.data.toString() // Convert document data to a string
+                        GrpData.extractGroupedProductDetails(rawData) // Parse using extractGroupedProductDetails
+                    }
+
+                    onSuccess(transactionDetails) // Pass the list of grouped transaction details to onSuccess
+                }
+                .addOnFailureListener { exception ->
+                    onFailure(exception)
+                }
+        } ?: onFailure(Exception("User is not authenticated"))
+    }
+
+
 }

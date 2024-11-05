@@ -1,8 +1,6 @@
 package com.example.sym.pages
 
 import android.os.Build
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
@@ -19,12 +17,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.sym.objs.Product
 import com.example.sym.others.CardList
 import com.example.sym.vms.AuthState
 import com.example.sym.vms.AuthViewModel
 import com.example.sym.vms.ProductViewModel
-import kotlin.system.exitProcess
+import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.ui.window.DialogProperties
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -38,157 +36,221 @@ fun HomePage(
     val authState by authViewModel.authState.observeAsState()
     val context = LocalContext.current
     val productList = productViewModel.products.observeAsState()
-    var showExitDialog by remember { mutableStateOf(false) }
+    var showProfile by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) } // State to control exit dialog visibility
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
 
-    // Handle back press
+    // Handle back button press to show exit dialog
     BackHandler {
         showExitDialog = true
     }
 
-    // Exit Dialog
-    if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            icon = {
-                Icon(
-                    Icons.Filled.ExitToApp,
-                    contentDescription = "Exit App",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            title = {
-                Text(
-                    text = "Exit App",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to exit the app?",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        authViewModel.signout()
-                    }
-                ) {
-                    Text(
-                        "Yes",
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showExitDialog = false }
-                ) {
-                    Text(
-                        "No",
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
-        )
-    }
-
     LaunchedEffect(key1 = authState) {
-        when (val state = authState) {
+        when(authState){
             is AuthState.UnAuthenticated -> navController.navigate("login")
-            is AuthState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
-            }
             else -> Unit
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Kirana Store",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                actions = {
-                    IconButton(onClick = { authViewModel.signout() }) {
-                        Icon(
-                            Icons.Filled.ExitToApp,
-                            contentDescription = "Sign Out",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
+    // Lighter maroon color scheme
+    val customColorScheme = lightColorScheme(
+        primary = Color(0xFFC41E3A),
+        onPrimary = Color(0xFFFFFFFF),
+        primaryContainer = Color(0xFFFFE5E8),
+        onPrimaryContainer = Color(0xFF8B0000),
+        secondary = Color(0xFFD4545C),
+        onSecondary = Color(0xFFFFFFFF),
+        surface = Color(0xFFFCFCFC),
+        background = Color(0xFFF8F8F8),
+        error = Color(0xFFB00020)
+    )
+
+    if (showProfile) {
+        BasicAlertDialog(
+            onDismissRequest = { showProfile = false },
+            properties = DialogProperties(dismissOnClickOutside = true),
+            content = {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = 8.dp,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth()
+                    ) {
+                        // Title with close button
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Profile",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            )
+                            IconButton(onClick = { showProfile = false }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Profile Details
+                        Text(text = "User Name: Shreekant", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "Email: ${currentUser?.email}", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Cart") },
-                    label = { Text("Cart") },
-                    selected = false,
-                    onClick = { navController.navigate("showcart") }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Collections, contentDescription = "Today's Collection") },
-                    label = { Text("Today's Collection") },
-                    selected = false,
-                    onClick = { navController.navigate("todayCollection") }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
-                    label = { Text("Home") },
-                    selected = true,
-                    onClick = { }
-                )
             }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+        )
+    }
+
+    // Exit confirmation dialog
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text(text = "Exit App") },
+            text = { Text("Are you sure you want to exit?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExitDialog = false
+                        navController.popBackStack() // Exit the app or go back
+                    }
                 ) {
-                    Icon(
-                        Icons.Filled.Store,
-                        contentDescription = "Store",
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
+    MaterialTheme(colorScheme = customColorScheme) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Store,
+                                contentDescription = "Store Icon",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Kirana",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    actions = {
+                        IconButton(onClick = { navController.navigate("allTransactions") }) {
+                            Icon(Icons.Filled.Receipt, "Transactions")
+                        }
+                        IconButton(onClick = { showProfile = true }) {
+                            Icon(Icons.Filled.Person, "Profile")
+                        }
+                        IconButton(onClick = { authViewModel.signout() }) {
+                            Icon(Icons.Filled.ExitToApp, "Sign Out")
+                        }
+                    }
+                )
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    tonalElevation = 4.dp
+                ) {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Home, "Home") },
+                        label = { Text("Home") },
+                        selected = false,
+                        onClick = { /* Do nothing for home button */ },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        )
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Welcome to Kirana Store",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.ShoppingCart, "Cart") },
+                        label = { Text("Cart") },
+                        selected = false,
+                        onClick = { navController.navigate("showcart") },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        )
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Collections, "Collection") },
+                        label = { Text("Collection") },
+                        selected = false,
+                        onClick = { navController.navigate("todayCollection") },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        )
                     )
                 }
             }
-
-            CardList(productList, productViewModel)
+        ) { paddingValues ->
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                if (productList.value == null) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Loading products...",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    CardList(productList, productViewModel)
+                }
+            }
         }
     }
 }
